@@ -37,6 +37,8 @@
 #include "ClassFileParser.hpp"  /* included to obtain definition of VerifyClassFunction */
 #include "StringInternTable.hpp"
 
+#define MAX_INTERFACE_INJECTION 1
+
 class BufferManager;
 class ClassFileOracle;
 class ConstantPoolMap;
@@ -93,6 +95,12 @@ private:
 		MAX_TAG = INTERMEDIATE_TAG
 	};
 	
+	enum NumOfInjectedInterfaces
+	{
+		NONE = 0,
+		ONE = 1
+	};
+
 	/* 
 	 * A helper structure to pass around the predicted and 
 	 * updated size of various parts of the ROMClass.

@@ -25,19 +25,25 @@
 
 #include "SRPKeyProducer.hpp"
 #include "ClassFileOracle.hpp"
+#include "ROMClassCreationContext.hpp"
 
 #include "ut_j9bcu.h"
 
-SRPKeyProducer::SRPKeyProducer(ClassFileOracle *classFileOracle) :
+SRPKeyProducer::SRPKeyProducer(ClassFileOracle *classFileOracle, ROMClassCreationContext *context) :
 	_cfrConstantPoolCount(classFileOracle->getConstantPoolCount()),
 	_methodCount(classFileOracle->getMethodsCount()),
 	_startStackMapKeys(0),
 	_startMethodDebugInfoKeys(0),
 	_startVariableInfoKeys(0),
 	_maxKey(0),
-	_getMaxKeyWasCalled(false)
+	_getMaxKeyWasCalled(false),
+	_needToInjectInterfaces(context->needToInjectInterfaces()),
+	_numOfInterfacesToInject(context->numOfInterfacesToInject())
 {
 	_startStackMapKeys = _cfrConstantPoolCount;
+	if (context->needToInjectInterfaces()) {
+		_startStackMapKeys += context->numOfInterfacesToInject();
+	}
 	_startMethodDebugInfoKeys = _startStackMapKeys + UDATA(_methodCount);
 	_startVariableInfoKeys = _startMethodDebugInfoKeys + UDATA(_methodCount);
 	_maxKey = _startVariableInfoKeys + UDATA(_methodCount);

@@ -74,7 +74,10 @@ public:
 		_existingRomMethod(NULL),
 		_reusingIntermediateClassData(false),
 		_creatingIntermediateROMClass(false),
-		_patchMap(NULL)
+		_patchMap(NULL),
+		_needToInjectInterfaces(false),
+		_interfacesToInject(NULL),
+		_numOfInterfacesToInject(0)
 	{
 	}
 
@@ -113,7 +116,10 @@ public:
 		_existingRomMethod(NULL),
 		_reusingIntermediateClassData(false),
 		_creatingIntermediateROMClass(false),
-		_patchMap(NULL)
+		_patchMap(NULL),
+		_needToInjectInterfaces(false),
+		_interfacesToInject(NULL),
+		_numOfInterfacesToInject(0)
 	{
 	}
 
@@ -159,7 +165,10 @@ public:
 		_existingRomMethod(NULL),
 		_reusingIntermediateClassData(false),
 		_creatingIntermediateROMClass(creatingIntermediateROMClass),
-		_patchMap(NULL)
+		_patchMap(NULL),
+		_needToInjectInterfaces(false),
+		_interfacesToInject(NULL),
+		_numOfInterfacesToInject(0)
 	{
 		if ((NULL != _javaVM) && (NULL != _javaVM->dynamicLoadBuffers)) {
 			/* localBuffer should not be NULL */
@@ -239,6 +248,19 @@ public:
 	bool isHiddenClassOptNestmateSet() const { return J9_FINDCLASS_FLAG_CLASS_OPTION_NESTMATE == (_findClassFlags & J9_FINDCLASS_FLAG_CLASS_OPTION_NESTMATE);}
 	bool isHiddenClassOptStrongSet() const { return J9_FINDCLASS_FLAG_CLASS_OPTION_STRONG == (_findClassFlags & J9_FINDCLASS_FLAG_CLASS_OPTION_STRONG);}
 
+	bool needToInjectInterfaces() { return _needToInjectInterfaces; }
+	UDATA numOfInterfacesToInject() { return _numOfInterfacesToInject; }
+	J9UTF8 **interfacesToInject() { return _interfacesToInject; }
+	void setInterfacesToInject(J9UTF8 **interfaces, UDATA numOfInterfaces)
+	{
+		if (_needToInjectInterfaces) {
+			PORT_ACCESS_FROM_JAVAVM(_javaVM);
+			j9mem_free_memory(interfacesToInject());
+		}
+		_needToInjectInterfaces = true;
+		_numOfInterfacesToInject = numOfInterfaces;
+		_interfacesToInject = interfaces;
+	}
 	bool isClassUnmodifiable() const {
 		bool unmodifiable = false;
 		if (NULL != _javaVM) {
@@ -769,6 +791,9 @@ private:
 	bool _reusingIntermediateClassData;
 	bool _creatingIntermediateROMClass;
 	J9ClassPatchMap *_patchMap;
+	bool _needToInjectInterfaces;
+	J9UTF8 **_interfacesToInject;
+	UDATA _numOfInterfacesToInject;
 
 	J9ROMMethod * romMethodFromOffset(IDATA offset);
 };

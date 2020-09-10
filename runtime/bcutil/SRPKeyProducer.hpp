@@ -32,11 +32,12 @@
 #include "ut_j9bcu.h"
 
 class ClassFileOracle;
+class ROMClassCreationContext;
 
 class SRPKeyProducer
 {
 public:
-	SRPKeyProducer(ClassFileOracle *classFileOracle);
+	SRPKeyProducer(ClassFileOracle *classFileOracle, ROMClassCreationContext *context);
 
 	/* generateKey can no-longer be called after getMaxKey has been called */
 	UDATA generateKey();
@@ -44,13 +45,25 @@ public:
 
 	UDATA mapCfrConstantPoolIndexToKey(U_16 index)
 	{
-		Trc_BCU_Assert_LessThan(index, _cfrConstantPoolCount);
+		U_16 maxIndex = _cfrConstantPoolCount;
+
+		if (_needToInjectInterfaces) {
+			maxIndex += (U_16) _numOfInterfacesToInject;
+		}
+
+		Trc_BCU_Assert_LessThan(index, maxIndex);
 		return index;
 	}
 
 	U_16 mapKeyToCfrConstantPoolIndex(UDATA key)
 	{
-		Trc_BCU_Assert_LessThan(key, _cfrConstantPoolCount);
+		U_16 maxIndex = _cfrConstantPoolCount;
+
+		if (_needToInjectInterfaces) {
+			maxIndex += (U_16) _numOfInterfacesToInject;
+		}
+
+		Trc_BCU_Assert_LessThan(key, maxIndex);
 		return U_16(key);
 	}
 
@@ -82,6 +95,8 @@ private:
 	UDATA _startVariableInfoKeys;
 	UDATA _maxKey;
 	bool _getMaxKeyWasCalled;
+	bool _needToInjectInterfaces;
+	U_16 _numOfInterfacesToInject;
 };
 
 #endif /* SRPKEYPRODUCER_HPP_ */

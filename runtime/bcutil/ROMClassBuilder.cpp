@@ -451,8 +451,28 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 	if ( !classFileOracle.isOK() ) {
 		return classFileOracle.getBuildResult();
 	}
+	J9UTF8 **interfaces = (J9UTF8 **) j9mem_allocate_memory((UDATA) (MAX_INTERFACE_INJECTION * sizeof(J9UTF8 *)), J9MEM_CATEGORY_CLASSES);
+	U_32 numOfInterfaces = 0;
+	if (NULL == interfaces) {
+		BuildResult res = OutOfMemory;
+		return res;
+	}
 
-	SRPKeyProducer srpKeyProducer(&classFileOracle);
+	if (classFileOracle.needsIdentityObjectInterface()) {
+#define JAVA_LANG_IDENTITYOBJECT "java/lang/IdentityObject"
+		J9UTF8 *identityObject = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(JAVA_LANG_IDENTITYOBJECT), J9MEM_CATEGORY_CLASSES);
+		if (NULL == interfaces) {
+			BuildResult res = OutOfMemory;
+			return res;
+		}
+		J9UTF8_SET_LENGTH(identityObject, sizeof(JAVA_LANG_IDENTITYOBJECT));
+		memcpy(J9UTF8_DATA(identityObject), JAVA_LANG_IDENTITYOBJECT, sizeof(JAVA_LANG_IDENTITYOBJECT));
+#undef JAVA_LANG_IDENTITYOBJECT
+		interfaces[numOfInterfaces++] = identityObject;
+	}
+	context->setInterfacesToInject(interfaces,numOfInterfaces);
+
+	SRPKeyProducer srpKeyProducer(&classFileOracle, context);
 
 	/*
 	 * The ROMClassWriter must be constructed before the SRPOffsetTable because it generates additional SRP keys.

@@ -810,12 +810,16 @@ class RecordComponentIterator
 	/*
 	 * Iterate over the constant pool indices corresponding to interface names (UTF8s).
 	 */
-	void interfacesDo(ConstantPoolIndexVisitor *visitor)
+	void interfacesDo(ConstantPoolIndexVisitor *visitor, U_16 numOfInjectedInterfaces)
 	{
 		U_16 *end = _classFile->interfaces + getInterfacesCount();
 		for (U_16 *interface = _classFile->interfaces; interface != end; ++interface) {
 			/* Each interface is a constantClass, use slot1 to get at the underlying UTF8 */
 			visitor->visitConstantPoolIndex(U_16(_classFile->constantPool[ *interface ].slot1));
+		}
+
+		for (int i = 0; i < numOfInjectedInterfaces; i++) {
+			visitor->visitConstantPoolIndex(getConstantPoolCount() + i);
 		}
 	}
 
@@ -975,6 +979,8 @@ class RecordComponentIterator
 	U_16 getRecordComponentCount() const { return _recordComponentCount; }
 	bool isSealed() const { return _isSealed; }
 	U_16 getPermittedSubclassesClassCount() const { return _isSealed ? _permittedSubclassesAttribute->numberOfClasses : 0; }
+	bool needsIdentityObjectInterface() const { return _isIdentityInterfaceNeeded; }
+	bool isValueType() const { return _isValueType; }
 
 	U_16 getPermittedSubclassesClassNameAtIndex(U_16 index) const {
 		U_16 result = 0;
@@ -1063,6 +1069,8 @@ private:
 	bool _needsStaticConstantInit;
 	bool _isRecord;
 	bool _isSealed;
+	bool _isIdentityInterfaceNeeded;
+	bool _isValueType;
 
 	FieldInfo *_fieldsInfo;
 	MethodInfo *_methodsInfo;

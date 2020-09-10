@@ -190,7 +190,9 @@ ClassFileOracle::ClassFileOracle(BufferManager *bufferManager, J9CfrClassFile *c
 	_isRecord(false),
 	_recordComponentCount(0),
 	_permittedSubclassesAttribute(NULL),
-	_isSealed(false)
+	_isSealed(false),
+	_isIdentityInterfaceNeeded(false),
+	_isValueType(false)
 {
 	Trc_BCU_Assert_NotEquals( classFile, NULL );
 
@@ -657,7 +659,8 @@ public:
 		_classFileOracle(classFileOracle),
 		_constantPoolMap(constantPoolMap),
 		_wasCloneableSeen(false),
-		_wasSerializableSeen(false)
+		_wasSerializableSeen(false),
+		_wasIdentityObjectSeen(false)
 	{
 	}
 
@@ -675,16 +678,24 @@ public:
 			_wasSerializableSeen = true;
 		}
 #undef SERIALIZABLE_NAME
+
+#define JAVA_LANG_IDENTITYOBJECT "java/lang/IdentityObject"
+		if( _classFileOracle->isUTF8AtIndexEqualToString(cpIndex, IDENTITY_OBJECT_NAME, sizeof(IDENTITY_OBJECT_NAME)) ) {
+			_wasIdentityObjectSeen = true;
+		}
+#undef JAVA_LANG_IDENTITYOBJECT
 	}
 
 	bool wasCloneableSeen() const { return _wasCloneableSeen; }
 	bool wasSerializableSeen() const { return _wasSerializableSeen; }
+	bool wasIdentityObjectSeen() const { return _wasIdentityObjectSeen; }
 
 private:
 	ClassFileOracle *_classFileOracle;
 	ConstantPoolMap *_constantPoolMap;
 	bool _wasCloneableSeen;
 	bool _wasSerializableSeen;
+	bool _wasIdentityObjectSeen;
 };
 
 void
@@ -693,9 +704,23 @@ ClassFileOracle::walkInterfaces()
 	ROMClassVerbosePhase v(_context, ClassFileInterfacesAnalysis);
 
 	InterfaceVisitor interfaceVisitor(this, _constantPoolMap);
-	interfacesDo(&interfaceVisitor);
+	interfacesDo(&interfaceVisitor, 0);
 	_isCloneable = interfaceVisitor.wasCloneableSeen();
 	_isSerializable = interfaceVisitor.wasSerializableSeen();
+	/* TODO current prototype still uses the flag, this will be updated to
+	* use the InlineObject interface in a separate PR
+	*/
+	if (J9_ARE_ALL_BITS_SET(_classFile->accessFlags, CFR_ACC_VALUE_TYPE)) {
+		_isValueType = true;
+	}
+
+	if (!isValueType()
+		&& !interfaceVisitor.wasIdentityObjectSeen()
+		&& (getSuperClassNameIndex() != 0) /* j.l.Object has no superClass */
+		&& (J9_ARE_NO_BITS_SET(_classFile->accessFlags, CFR_ACC_ABSTRACT | CFR_ACC_INTERFACE))
+	) {
+		_isIdentityInterfaceNeeded = true;
+	}
 }
 
 void

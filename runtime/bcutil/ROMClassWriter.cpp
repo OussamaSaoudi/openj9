@@ -358,7 +358,7 @@ ROMClassWriter::writeROMClass(Cursor *cursor,
 		cursor->writeSRP(_srpKeyProducer->mapCfrConstantPoolIndexToKey(_classFileOracle->getSuperClassNameIndex()), Cursor::SRP_TO_UTF8);
 		cursor->writeU32(modifiers, Cursor::GENERIC);
 		cursor->writeU32(extraModifiers, Cursor::GENERIC);
-		cursor->writeU32(_classFileOracle->getInterfacesCount(), Cursor::GENERIC);
+		cursor->writeU32(_classFileOracle->getInterfacesCount() + _context->numOfInterfacesToInject() , Cursor::GENERIC);
 		cursor->writeSRP(_interfacesSRPKey, Cursor::SRP_TO_GENERIC);
 		cursor->writeU32(_classFileOracle->getMethodsCount(), Cursor::GENERIC);
 		cursor->writeSRP(_methodsSRPKey, Cursor::SRP_TO_GENERIC);
@@ -704,13 +704,14 @@ class ROMClassWriter::Helper :
 public:
 	Helper(Cursor *cursor, bool markAndCountOnly,
 			ClassFileOracle *classFileOracle, SRPKeyProducer *srpKeyProducer, SRPOffsetTable *srpOffsetTable, ConstantPoolMap *constantPoolMap,
-			UDATA expectedSize) :
+			UDATA expectedSize, ROMClassCreationContext *context) :
 		_cursor(cursor),
 		_classFileOracle(classFileOracle),
 		_srpKeyProducer(srpKeyProducer),
 		_srpOffsetTable(srpOffsetTable),
 		_constantPoolMap(constantPoolMap),
-		_markAndCountOnly(markAndCountOnly)
+		_markAndCountOnly(markAndCountOnly),
+		_context(context)
 	{
 		if (_markAndCountOnly) {
 			_cursor->skip(expectedSize);
@@ -736,7 +737,7 @@ public:
 	void writeInterfaces()
 	{
 		if (!_markAndCountOnly) {
-			_classFileOracle->interfacesDo(this); /* visitConstantPoolIndex */
+			_classFileOracle->interfacesDo(this, _context->numOfInterfacesToInject()); /* visitConstantPoolIndex */
 		}
 	}
 
@@ -780,6 +781,14 @@ public:
 					}
 				}
 			}
+#define JAVA_LANG_IDENTITYOBJECT "java/lang/IdentityObject"
+			if (_context->needToInjectInterfaces()) {
+				for (int i = 0; i < _context->numOfInterfacesToInject(); i++) {
+					_cursor->mark(_classFileOracle->getConstantPoolCount() + i);
+					_cursor->writeUTF8((U_8*)J9UTF8_DATA(_context->interfacesToInject()[i]), J9UTF8_LENGTH(_context->interfacesToInject()[i]) - 1, Cursor::GENERIC);
+				}
+			}
+#undef JAVA_LANG_IDENTITYOBJECT
 		}
 	}
 
@@ -1077,6 +1086,7 @@ private:
 	SRPOffsetTable *_srpOffsetTable;
 	ConstantPoolMap *_constantPoolMap;
 	bool _markAndCountOnly;
+	ROMClassCreationContext *_context;
 };
 
 void
@@ -1084,8 +1094,11 @@ ROMClassWriter::writeInterfaces(Cursor *cursor, bool markAndCountOnly)
 {
 	cursor->mark(_interfacesSRPKey);
 	UDATA size = UDATA(_classFileOracle->getInterfacesCount()) * sizeof(J9SRP);
+	if (_context->needToInjectInterfaces()) {
+		size += UDATA(_context->numOfInterfacesToInject()) * sizeof(J9SRP);
+	}
 	CheckSize _(cursor, size);
-	Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeInterfaces();
+	Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeInterfaces();
 }
 
 void
@@ -1094,7 +1107,7 @@ ROMClassWriter::writeInnerClasses(Cursor *cursor, bool markAndCountOnly)
 	cursor->mark(_innerClassesSRPKey);
 	UDATA size = UDATA(_classFileOracle->getInnerClassCount()) * sizeof(J9SRP);
 	CheckSize _(cursor, size);
-	Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeInnerClasses();
+	Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeInnerClasses();
 }
 
 #if JAVA_SPEC_VERSION >= 11
@@ -1104,20 +1117,20 @@ ROMClassWriter::writeNestMembers(Cursor *cursor, bool markAndCountOnly)
 	cursor->mark(_nestMembersSRPKey);
 	UDATA size = UDATA(_classFileOracle->getNestMembersCount()) * sizeof(J9SRP);
 	CheckSize _(cursor,size);
-	Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeNestMembers();
+	Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeNestMembers();
 }
 #endif /* JAVA_SPEC_VERSION >= 11 */
 
 void
 ROMClassWriter::writeNameAndSignatureBlock(Cursor *cursor)
 {
-	Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0).writeNameAndSignatureBlock();
+	Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0, _context).writeNameAndSignatureBlock();
 }
 
 void 
 ROMClassWriter::writeUTF8s(Cursor *cursor)
 {
-	Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0).writeUTF8Block();
+	Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0, _context).writeUTF8Block();
 	/* aligned to U_64 required by the shared classes */
 	cursor->padToAlignment(sizeof(U_64), Cursor::GENERIC);
 }
@@ -1299,7 +1312,7 @@ ROMClassWriter::writeMethods(Cursor *cursor, Cursor *lineNumberCursor, Cursor *v
 					UDATA(iterator.getExceptionHandlersCount()) * sizeof(J9ExceptionHandler) +
 					UDATA(iterator.getExceptionsThrownCount()) * sizeof(J9SRP);
 			CheckSize _(cursor, size);
-			Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeExceptionBlock(&iterator);
+			Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeExceptionBlock(&iterator);
 		}
 
 		if (iterator.hasAnnotationsData()) {
@@ -1385,7 +1398,7 @@ ROMClassWriter::writeMethods(Cursor *cursor, Cursor *lineNumberCursor, Cursor *v
 			/* output the number of frames */
 			cursor->writeBigEndianU16(iterator.getStackMapFramesCount(), Cursor::GENERIC); /* TODO: don't write this stuff in BigEndian??? */
 
-			Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0).writeStackMap(&iterator);
+			Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0, _context).writeStackMap(&iterator);
 			cursor->padToAlignment(sizeof(U_32), Cursor::GENERIC);
 			if (markAndCountOnly) {
 				/* Following is adding PAD to stackmap size. First round is always markAndCountOnly.
@@ -1409,7 +1422,7 @@ ROMClassWriter::writeMethods(Cursor *cursor, Cursor *lineNumberCursor, Cursor *v
 			} else {
 				cursor->writeU8(mthParamCount, Cursor::GENERIC);
 				CheckSize _(cursor, size);
-				Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeMethodParameters(&iterator);
+				Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeMethodParameters(&iterator);
 			}
 			cursor->padToAlignment(sizeof(U_32), Cursor::GENERIC);
 		}
@@ -1854,10 +1867,10 @@ ROMClassWriter::writeCallSiteData(Cursor *cursor, bool markAndCountOnly)
 	if (_constantPoolMap->hasCallSites()) {
 		UDATA size = UDATA(_constantPoolMap->getCallSiteCount()) * (sizeof(J9SRP) + sizeof(U_16));
 		CheckSize _(cursor, size);
-		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeCallSiteData();
+		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeCallSiteData();
 	}
 	if (_classFileOracle->hasBootstrapMethods()) {
-		Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0).writeBootstrapMethods();
+		Helper(cursor, false, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, 0, _context).writeBootstrapMethods();
 	}
 }
 
@@ -1868,7 +1881,7 @@ ROMClassWriter::writeVarHandleMethodTypeLookupTable(Cursor *cursor, bool markAnd
 		cursor->mark(_varHandleMethodTypeLookupTableSRPKey);
 		UDATA size = _constantPoolMap->getVarHandleMethodTypePaddedCount() * sizeof(U_16);
 		CheckSize _(cursor, size);
-		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeVarHandleMethodTypeLookupTable();
+		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeVarHandleMethodTypeLookupTable();
 	}
 }
 
@@ -1879,7 +1892,7 @@ ROMClassWriter::writeStaticSplitTable(Cursor *cursor, bool markAndCountOnly)
 		cursor->mark(_staticSplitTableSRPKey);
 		UDATA size = UDATA(_constantPoolMap->getStaticSplitEntryCount()) * sizeof(U_16);
 		CheckSize _(cursor, size);
-		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeStaticSplitTable();
+		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeStaticSplitTable();
 	}
 }
 
@@ -1890,7 +1903,7 @@ ROMClassWriter::writeSpecialSplitTable(Cursor *cursor, bool markAndCountOnly)
 		cursor->mark(_specialSplitTableSRPKey);
 		UDATA size = UDATA(_constantPoolMap->getSpecialSplitEntryCount()) * sizeof(U_16);
 		CheckSize _(cursor, size);
-		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size).writeSpecialSplitTable();
+		Helper(cursor, markAndCountOnly, _classFileOracle, _srpKeyProducer, _srpOffsetTable, _constantPoolMap, size, _context).writeSpecialSplitTable();
 	}
 }
 
