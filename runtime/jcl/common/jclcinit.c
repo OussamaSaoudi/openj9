@@ -564,6 +564,7 @@ initializeRequiredClasses(J9VMThread *vmThread, char* dllName)
 	UDATA jniVersion, i;
 	J9Class *objectClass;
 	J9Class *identityObjectClass;
+	J9Class *dummyObjectClass;
 	J9Class *vmInternalsClass;
 	J9Class *classClass;
 	J9Class *clazz;
@@ -620,6 +621,10 @@ initializeRequiredClasses(J9VMThread *vmThread, char* dllName)
 	}
 	identityObjectClass = vmFuncs->internalFindKnownClass(vmThread, J9VMCONSTANTPOOL_JAVALANGIDENTITYOBJECT, J9_FINDKNOWNCLASS_FLAG_NON_FATAL);
 	if (NULL == identityObjectClass) {
+		return 1;
+	}
+	dummyObjectClass = vmFuncs->internalFindKnownClass(vmThread, J9VMCONSTANTPOOL_JAVALANGDUMMYOBJECT, J9_FINDKNOWNCLASS_FLAG_NON_FATAL);
+	if (NULL == dummyObjectClass) {
 		return 1;
 	}
 	vmInternalsClass = vmFuncs->internalFindKnownClass(vmThread, J9VMCONSTANTPOOL_JAVALANGJ9VMINTERNALS, J9_FINDKNOWNCLASS_FLAG_NON_FATAL);

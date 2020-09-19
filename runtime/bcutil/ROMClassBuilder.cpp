@@ -457,7 +457,18 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 		BuildResult res = OutOfMemory;
 		return res;
 	}
-
+	if ((classFileOracle.getSuperClassNameIndex() != 0) && (J9_ARE_NO_BITS_SET(classFileParser->getParsedClassFile()->accessFlags, CFR_ACC_ABSTRACT | CFR_ACC_INTERFACE))) {
+#define DUMMY_OBJECT_INTERFACE "java/lang/DummyObject"
+		J9UTF8 *dummy = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(DUMMY_OBJECT_INTERFACE), J9MEM_CATEGORY_CLASSES);
+		if (NULL == interfaces) {
+			BuildResult res = OutOfMemory;
+			return res;
+		}
+		J9UTF8_SET_LENGTH(dummy, sizeof(DUMMY_OBJECT_INTERFACE));
+		memcpy(J9UTF8_DATA(dummy), DUMMY_OBJECT_INTERFACE, sizeof(DUMMY_OBJECT_INTERFACE));
+#undef DUMMY_OBJECT_INTERFACE
+		interfaces[numOfInterfaces++] = dummy;
+	}
 	if (classFileOracle.needsIdentityObjectInterface()) {
 #define JAVA_LANG_IDENTITYOBJECT "java/lang/IdentityObject"
 		J9UTF8 *identityObject = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(JAVA_LANG_IDENTITYOBJECT), J9MEM_CATEGORY_CLASSES);

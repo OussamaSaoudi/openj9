@@ -37,7 +37,7 @@
 #include "ClassFileParser.hpp"  /* included to obtain definition of VerifyClassFunction */
 #include "StringInternTable.hpp"
 
-#define MAX_INTERFACE_INJECTION 1
+#define MAX_INTERFACE_INJECTION 2
 
 class BufferManager;
 class ClassFileOracle;

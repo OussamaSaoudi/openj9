@@ -946,6 +946,7 @@ typedef struct J9CfrClassFile {
 #define ANON_CLASSNAME_CHARACTER_SEPARATOR '/'
 
 #define IDENTITY_OBJECT_NAME "java/lang/IdentityObject"
+#define DUMMY_OBJECT_NAME "java/lang/DummyObject"
 
 #ifdef __cplusplus
 }
