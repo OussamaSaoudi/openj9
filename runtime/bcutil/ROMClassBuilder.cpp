@@ -66,7 +66,8 @@ ROMClassBuilder::ROMClassBuilder(J9JavaVM *javaVM, J9PortLibrary *portLibrary, U
 	_bufferManagerBuffer(NULL),
 	_anonClassNameBuffer(NULL),
 	_anonClassNameBufferSize(0),
-	_stringInternTable(javaVM, portLibrary, maxStringInternTableSize)
+	_stringInternTable(javaVM, portLibrary, maxStringInternTableSize),
+	_context(NULL)
 {
 }
 
@@ -84,6 +85,11 @@ ROMClassBuilder::~ROMClassBuilder()
 	j9mem_free_memory(_classFileBuffer);
 	j9mem_free_memory(_bufferManagerBuffer);
 	j9mem_free_memory(_anonClassNameBuffer);
+	for (int i = 0; i < _context->numOfInterfacesToInject(); i++) {
+		PORT_ACCESS_FROM_JAVAVM(_javaVM);
+		j9mem_free_memory(_context->interfacesToInject()[i]);
+	}
+	_context->setInterfacesToInject(NULL, 0);
 }
 
 ROMClassBuilder *
@@ -437,7 +443,7 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 	 * modified by the BCI agent.
 	 */
 	Trc_BCU_Assert_False(context->isRetransforming() && !context->isRetransformAllowed());
-
+	_context = context;
 	bool isLambda = false;
 	if (context->isClassAnon() || context->isClassHidden()) {
 		BuildResult res = handleAnonClassName(classFileParser->getParsedClassFile(), &isLambda, context->hostPackageName(), context->hostPackageLength());

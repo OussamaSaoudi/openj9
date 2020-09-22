@@ -129,6 +129,7 @@ private:
 	UDATA _anonClassNameBufferSize;
 	U_8 *_bufferManagerBuffer;
 	StringInternTable _stringInternTable;
+	ROMClassCreationContext *_context;
 
 	BuildResult handleAnonClassName(J9CfrClassFile *classfile, bool *isLambda, U_8* hostPackageName, UDATA hostPackageLength);
 	U_32 computeExtraModifiers(ClassFileOracle *classFileOracle, ROMClassCreationContext *context);
