@@ -253,13 +253,22 @@ public:
 	J9UTF8 **interfacesToInject() { return _interfacesToInject; }
 	void setInterfacesToInject(J9UTF8 **interfaces, UDATA numOfInterfaces)
 	{
-		if (_needToInjectInterfaces) {
-			PORT_ACCESS_FROM_JAVAVM(_javaVM);
-			j9mem_free_memory(interfacesToInject());
-		}
 		_needToInjectInterfaces = true;
 		_numOfInterfacesToInject = numOfInterfaces;
 		_interfacesToInject = interfaces;
+	}
+	void unsetInterfacesToInject() {
+		if (_needToInjectInterfaces) {
+			PORT_ACCESS_FROM_PORT(_portLibrary);
+			_needToInjectInterfaces = false;
+			for (int i = 0; i < _numOfInterfacesToInject; i++) {
+				j9mem_free_memory(_interfacesToInject[i]);
+			}
+			j9mem_free_memory(_interfacesToInject);
+			_numOfInterfacesToInject = 0;
+			_interfacesToInject = NULL;
+		}
+
 	}
 	bool isClassUnmodifiable() const {
 		bool unmodifiable = false;

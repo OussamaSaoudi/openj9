@@ -85,11 +85,7 @@ ROMClassBuilder::~ROMClassBuilder()
 	j9mem_free_memory(_classFileBuffer);
 	j9mem_free_memory(_bufferManagerBuffer);
 	j9mem_free_memory(_anonClassNameBuffer);
-	for (int i = 0; i < _context->numOfInterfacesToInject(); i++) {
-		PORT_ACCESS_FROM_JAVAVM(_javaVM);
-		j9mem_free_memory(_context->interfacesToInject()[i]);
-	}
-	_context->setInterfacesToInject(NULL, 0);
+	_context->unsetInterfacesToInject();
 }
 
 ROMClassBuilder *
@@ -457,37 +453,43 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 	if ( !classFileOracle.isOK() ) {
 		return classFileOracle.getBuildResult();
 	}
-	J9UTF8 **interfaces = (J9UTF8 **) j9mem_allocate_memory((UDATA) (MAX_INTERFACE_INJECTION * sizeof(J9UTF8 *)), J9MEM_CATEGORY_CLASSES);
-	U_32 numOfInterfaces = 0;
-	if (NULL == interfaces) {
-		BuildResult res = OutOfMemory;
-		return res;
-	}
-	if ((classFileOracle.getSuperClassNameIndex() != 0) && (J9_ARE_NO_BITS_SET(classFileParser->getParsedClassFile()->accessFlags, CFR_ACC_ABSTRACT | CFR_ACC_INTERFACE))) {
-#define DUMMY_OBJECT_INTERFACE "java/lang/DummyObject"
-		J9UTF8 *dummy = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(DUMMY_OBJECT_INTERFACE), J9MEM_CATEGORY_CLASSES);
+	if (!context->needToInjectInterfaces()){
+		U_32 numOfInterfaces = 0;
+		J9UTF8 **interfaces = (J9UTF8 **) j9mem_allocate_memory((UDATA) (MAX_INTERFACE_INJECTION * sizeof(J9UTF8 *)), J9MEM_CATEGORY_CLASSES);
 		if (NULL == interfaces) {
 			BuildResult res = OutOfMemory;
 			return res;
 		}
-		J9UTF8_SET_LENGTH(dummy, sizeof(DUMMY_OBJECT_INTERFACE));
-		memcpy(J9UTF8_DATA(dummy), DUMMY_OBJECT_INTERFACE, sizeof(DUMMY_OBJECT_INTERFACE));
-#undef DUMMY_OBJECT_INTERFACE
-		interfaces[numOfInterfaces++] = dummy;
-	}
-	if (classFileOracle.needsIdentityObjectInterface()) {
-#define JAVA_LANG_IDENTITYOBJECT "java/lang/IdentityObject"
-		J9UTF8 *identityObject = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(JAVA_LANG_IDENTITYOBJECT), J9MEM_CATEGORY_CLASSES);
-		if (NULL == interfaces) {
-			BuildResult res = OutOfMemory;
-			return res;
+		if ((classFileOracle.getSuperClassNameIndex() != 0) && (J9_ARE_NO_BITS_SET(classFileParser->getParsedClassFile()->accessFlags, CFR_ACC_ABSTRACT | CFR_ACC_INTERFACE))) {
+	#define DUMMY_OBJECT_INTERFACE "java/lang/DummyObject"
+			J9UTF8 *dummy = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(DUMMY_OBJECT_INTERFACE) + sizeof(J9UTF8), J9MEM_CATEGORY_CLASSES);
+			if (NULL == dummy) {
+				BuildResult res = OutOfMemory;
+				return res;
+			}
+			J9UTF8_SET_LENGTH(dummy, sizeof(DUMMY_OBJECT_INTERFACE));
+			memcpy(J9UTF8_DATA(dummy), DUMMY_OBJECT_INTERFACE, sizeof(DUMMY_OBJECT_INTERFACE));
+	#undef DUMMY_OBJECT_INTERFACE
+			interfaces[numOfInterfaces++] = dummy;
 		}
-		J9UTF8_SET_LENGTH(identityObject, sizeof(JAVA_LANG_IDENTITYOBJECT));
-		memcpy(J9UTF8_DATA(identityObject), JAVA_LANG_IDENTITYOBJECT, sizeof(JAVA_LANG_IDENTITYOBJECT));
-#undef JAVA_LANG_IDENTITYOBJECT
-		interfaces[numOfInterfaces++] = identityObject;
+		if (classFileOracle.needsIdentityObjectInterface()) {
+	#define JAVA_LANG_IDENTITYOBJECT "java/lang/IdentityObject"
+			J9UTF8 *identityObject = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(JAVA_LANG_IDENTITYOBJECT) + sizeof(J9UTF8), J9MEM_CATEGORY_CLASSES);
+			if (NULL == identityObject) {
+				BuildResult res = OutOfMemory;
+				return res;
+			}
+			J9UTF8_SET_LENGTH(identityObject, sizeof(JAVA_LANG_IDENTITYOBJECT));
+			memcpy(J9UTF8_DATA(identityObject), JAVA_LANG_IDENTITYOBJECT, sizeof(JAVA_LANG_IDENTITYOBJECT));
+	#undef JAVA_LANG_IDENTITYOBJECT
+			interfaces[numOfInterfaces++] = identityObject;
+		}
+		if (numOfInterfaces > 0 ) {
+			context->setInterfacesToInject(interfaces,numOfInterfaces);
+		} else {
+			j9mem_free_memory(interfaces);
+		}
 	}
-	context->setInterfacesToInject(interfaces,numOfInterfaces);
 
 	SRPKeyProducer srpKeyProducer(&classFileOracle, context);
 
