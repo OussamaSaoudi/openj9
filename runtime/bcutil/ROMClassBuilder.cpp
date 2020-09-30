@@ -474,7 +474,7 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 		}
 		if (classFileOracle.needsIdentityObjectInterface()) {
 	#define JAVA_LANG_IDENTITYOBJECT "java/lang/IdentityObject"
-			J9UTF8 *identityObject = (J9UTF8 *) j9mem_allocate_memory((UDATA) sizeof(JAVA_LANG_IDENTITYOBJECT) + sizeof(J9UTF8), J9MEM_CATEGORY_CLASSES);
+			J9UTF8 *identityObject = (J9UTF8 *) j9mem_allocate_memory ((UDATA) sizeof(JAVA_LANG_IDENTITYOBJECT) + sizeof(J9UTF8), J9MEM_CATEGORY_CLASSES);
 			if (NULL == identityObject) {
 				BuildResult res = OutOfMemory;
 				return res;
@@ -489,7 +489,7 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 		} else {
 			j9mem_free_memory(interfaces);
 		}
-		context->setInjectionInitalized();
+		context->setInjctionInitialized();
 	}
 
 	SRPKeyProducer srpKeyProducer(&classFileOracle, context);
@@ -1107,8 +1107,8 @@ ROMClassBuilder::finishPrepareAndLaydown(
  *                                    + UNUSED
  *
  *                                  + UNUSED
- *                                 + UNUSED
- *                                + UNUSED
+ *                                 + J9AccClassHasInjectedIdentityObjectInterface
+ *                                + J9AccClassHasInjectedDummyObjectInterface
  *                              + J9AccClassHiddenOptionNestmate
  *
  *                             + J9AccClassHiddenOptionStrong
@@ -1189,6 +1189,13 @@ ROMClassBuilder::computeExtraModifiers(ClassFileOracle *classFileOracle, ROMClas
 
 	if ( classFileOracle->isClassUnmodifiable() ) {
 		modifiers |= J9AccClassIsUnmodifiable;
+	}
+
+	if ((classFileOracle->getSuperClassNameIndex() != 0) && (J9_ARE_NO_BITS_SET(classFileOracle->getAccessFlags(), CFR_ACC_ABSTRACT | CFR_ACC_INTERFACE))) {
+		modifiers |= J9AccClassHasInjectedDummyObjectInterface;
+	}
+	if (classFileOracle->needsIdentityObjectInterface()) {
+		modifiers |= J9AccClassHasInjectedIdentityObjectInterface;
 	}
 
 	U_32 classNameindex = classFileOracle->getClassNameIndex();
