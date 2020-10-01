@@ -248,6 +248,8 @@ public:
 	bool isHiddenClassOptNestmateSet() const { return J9_FINDCLASS_FLAG_CLASS_OPTION_NESTMATE == (_findClassFlags & J9_FINDCLASS_FLAG_CLASS_OPTION_NESTMATE);}
 	bool isHiddenClassOptStrongSet() const { return J9_FINDCLASS_FLAG_CLASS_OPTION_STRONG == (_findClassFlags & J9_FINDCLASS_FLAG_CLASS_OPTION_STRONG);}
 
+	bool isInjectionInitialized() { return _isInjectionInitialized; }
+	void setInjctionInitialized() { _isInjectionInitialized = true; }
 	bool needToInjectInterfaces() { return _needToInjectInterfaces; }
 	UDATA numOfInterfacesToInject() { return _numOfInterfacesToInject; }
 	J9UTF8 **interfacesToInject() { return _interfacesToInject; }
@@ -803,6 +805,7 @@ private:
 	bool _needToInjectInterfaces;
 	J9UTF8 **_interfacesToInject;
 	UDATA _numOfInterfacesToInject;
+	bool _isInjectionInitialized;
 
 	J9ROMMethod * romMethodFromOffset(IDATA offset);
 };
