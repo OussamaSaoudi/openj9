@@ -485,6 +485,8 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 		}
 		if (numOfInterfaces > 0 ) {
 			context->setInterfacesToInject(interfaces,numOfInterfaces);
+		} else {
+			j9mem_free_memory(interfaces);
 		}
 		//context->setInjctionInitialized();
 	}
