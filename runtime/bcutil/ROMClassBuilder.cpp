@@ -85,7 +85,6 @@ ROMClassBuilder::~ROMClassBuilder()
 	j9mem_free_memory(_classFileBuffer);
 	j9mem_free_memory(_bufferManagerBuffer);
 	j9mem_free_memory(_anonClassNameBuffer);
-	_context->unsetInterfacesToInject();
 }
 
 ROMClassBuilder *
@@ -453,7 +452,7 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 	if ( !classFileOracle.isOK() ) {
 		return classFileOracle.getBuildResult();
 	}
-	if (!context->isInjectionInitialized()){
+	if (!context->needToInjectInterfaces()){
 		U_32 numOfInterfaces = 0;
 		J9UTF8 **interfaces = (J9UTF8 **) j9mem_allocate_memory((UDATA) (MAX_INTERFACE_INJECTION * sizeof(J9UTF8 *)), J9MEM_CATEGORY_CLASSES);
 		if (NULL == interfaces) {
@@ -486,10 +485,8 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 		}
 		if (numOfInterfaces > 0 ) {
 			context->setInterfacesToInject(interfaces,numOfInterfaces);
-		} else {
-			j9mem_free_memory(interfaces);
 		}
-		context->setInjctionInitialized();
+		//context->setInjctionInitialized();
 	}
 
 	SRPKeyProducer srpKeyProducer(&classFileOracle, context);
@@ -819,6 +816,8 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 	context->allocationStrategy()->updateFinalROMSize(romSize);
 
 	context->recordROMClass((J9ROMClass *)romClassBuffer);
+
+	_context->unsetInterfacesToInject();
 
 	if ((NULL != _javaVM) && (_javaVM->extendedRuntimeFlags & J9_EXTENDED_RUNTIME_CHECK_DEBUG_INFO_COMPRESSION)) {
 		checkDebugInfoCompression((J9ROMClass *)romClassBuffer, classFileOracle, &srpKeyProducer, &constantPoolMap, &srpOffsetTable);
