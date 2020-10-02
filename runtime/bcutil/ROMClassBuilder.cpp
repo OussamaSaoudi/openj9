@@ -452,7 +452,7 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 	if ( !classFileOracle.isOK() ) {
 		return classFileOracle.getBuildResult();
 	}
-	if (!context->needToInjectInterfaces()){
+	if (!context->isInjectionInitialized()){
 		U_32 numOfInterfaces = 0;
 		J9UTF8 **interfaces = (J9UTF8 **) j9mem_allocate_memory((UDATA) (MAX_INTERFACE_INJECTION * sizeof(J9UTF8 *)), J9MEM_CATEGORY_CLASSES);
 		if (NULL == interfaces) {
@@ -486,7 +486,7 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 		if (numOfInterfaces > 0 ) {
 			context->setInterfacesToInject(interfaces,numOfInterfaces);
 		}
-		//context->setInjctionInitialized();
+		context->setInjctionInitialized();
 	}
 
 	SRPKeyProducer srpKeyProducer(&classFileOracle, context);
