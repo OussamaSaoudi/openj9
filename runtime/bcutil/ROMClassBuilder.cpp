@@ -247,7 +247,7 @@ ROMClassBuilder::buildROMClass(ROMClassCreationContext *context)
 	if ( OK == result ) {
 		context->recordTranslationEnd();
 	}
-
+	_context->unsetInterfacesToInject();
 	context->recordLoadEnd(result);
 	return result;
 }
@@ -455,9 +455,16 @@ ROMClassBuilder::prepareAndLaydown( BufferManager *bufferManager, ClassFileParse
 		return classFileOracle.getBuildResult();
 	}
 	bool needsDummyObjectInterface = (classFileOracle.getSuperClassNameIndex() != 0) && (J9_ARE_NO_BITS_SET(classFileParser->getParsedClassFile()->accessFlags, CFR_ACC_ABSTRACT | CFR_ACC_INTERFACE));
+	int totalInterfaces = 0;
+	if (needsDummyObjectInterface) {
+		totalInterfaces += 1;
+	}
+	if (classFileOracle.needsIdentityObjectInterface()) {
+		totalInterfaces += 1;
+	}
 	if (!context->isInjectionInitialized() && (needsDummyObjectInterface || classFileOracle.needsIdentityObjectInterface())){
 		U_32 numOfInterfaces = 0;
-		J9UTF8 **interfaces = (J9UTF8 **) j9mem_allocate_memory((UDATA) (MAX_INTERFACE_INJECTION * sizeof(J9UTF8 *)), J9MEM_CATEGORY_CLASSES);
+		J9UTF8 **interfaces = (J9UTF8 **) j9mem_allocate_memory((UDATA) (totalInterfaces * sizeof(J9UTF8 *)), J9MEM_CATEGORY_CLASSES);
 		if (NULL == interfaces) {
 			BuildResult res = OutOfMemory;
 			return res;
