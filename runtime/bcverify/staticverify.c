@@ -1761,7 +1761,7 @@ j9bcv_verifyClassStructure (J9PortLibrary * portLib, J9CfrClassFile * classfile,
 			}
 			if (isInit) {
 				UDATA returnChar = (UDATA) getReturnTypeFromSignature(info->bytes, info->slot1, NULL);
-				if ((info->bytes[info->slot1 - 1] != 'V') && !IS_QTYPE(returnChar)) {
+				if ((info->bytes[info->slot1 - 1] != 'V')) {
 					errorType = J9NLS_CFR_ERR_BC_METHOD_INVALID_SIG__ID;
 					goto _formatError;
 				}
@@ -1870,10 +1870,7 @@ j9bcv_verifyClassStructure (J9PortLibrary * portLib, J9CfrClassFile * classfile,
 		}
 		if (isInit) {
 			UDATA returnChar = (UDATA) getReturnTypeFromSignature(info->bytes, info->slot1, NULL);
-			if ((info->bytes[info->slot1 - 1] != 'V')
-				&& ((J9_IS_CLASSFILE_VALUETYPE(classfile) && !IS_QTYPE(returnChar))
-					|| (!J9_IS_CLASSFILE_VALUETYPE(classfile) && IS_QTYPE(returnChar)))
-			) {
+			if ((info->bytes[info->slot1 - 1] != 'V')) {
 				Trc_STV_j9bcv_verifyClassStructure_MethodError(J9NLS_CFR_ERR_BC_METHOD_INVALID_SIG__ID, i);
 				buildMethodError((J9CfrError *)segment, errorType, CFR_ThrowClassFormatError, (I_32) i, 0, method, classfile->constantPool);
 				result = -1;
